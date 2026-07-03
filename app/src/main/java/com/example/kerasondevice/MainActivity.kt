@@ -8,46 +8,64 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.kerasondevice.domain.catalog.DemoEntry
+import com.example.kerasondevice.domain.task.TaskRegistry
+import com.example.kerasondevice.ui.catalog.CatalogScreen
 import com.example.kerasondevice.ui.components.KerasTopBar
-import com.example.kerasondevice.ui.screen.ChatScreen
-import com.example.kerasondevice.ui.theme.LiteRTLMDemoTheme
-import com.example.kerasondevice.ui.viewmodel.ChatViewModel
+import com.example.kerasondevice.ui.language.LanguageScreen
+import com.example.kerasondevice.ui.multimodal.MultimodalScreen
+import com.example.kerasondevice.ui.task.TaskScreen
+import com.example.kerasondevice.ui.theme.KerasOnDeviceTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            LiteRTLMDemoTheme(darkTheme = true) {
-                val viewModel: ChatViewModel = viewModel()
-                val uiState by viewModel.uiState.collectAsState()
-                val modelInfo = uiState.modelInfo
+            KerasOnDeviceTheme(darkTheme = true) {
+                var currentEntry by rememberSaveable { mutableStateOf<DemoEntry?>(null) }
 
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
                     topBar = {
                         KerasTopBar(
-                            modelName = modelInfo?.path?.substringAfterLast("/"),
-                            modelSize = modelInfo?.sizeText,
-                            availableModels = uiState.availableModels.map {
-                                it.name to it.sizeText
-                            },
-                            onModelSelected = { index ->
-                                val model = uiState.availableModels.getOrNull(index)
-                                if (model != null) {
-                                    viewModel.switchModel(model)
-                                }
-                            },
-                            onNewChat = { viewModel.clearConversation() }
+                            onNewChat = { currentEntry = null }
                         )
                     },
                     containerColor = MaterialTheme.colorScheme.background
                 ) { innerPadding ->
-                    ChatScreen(modifier = Modifier.padding(innerPadding))
+                    val modifier = Modifier.padding(innerPadding)
+                    when (val entry = currentEntry) {
+                        null -> CatalogScreen(
+                            onSelect = { currentEntry = it },
+                            modifier = modifier
+                        )
+                        is DemoEntry.VisionEntry -> {
+                            val task = TaskRegistry.get(entry.taskId)
+                            if (task != null) {
+                                TaskScreen(
+                                    task = task,
+                                    onBack = { currentEntry = null },
+                                    modifier = modifier
+                                )
+                            } else {
+                                currentEntry = null
+                            }
+                        }
+                        is DemoEntry.LanguageEntry -> LanguageScreen(
+                            modifier = modifier
+                        )
+                        is DemoEntry.MultimodalEntry -> androidx.compose.foundation.layout.Box(
+                            modifier = modifier.fillMaxSize()
+                        ) {
+                            MultimodalScreen(onBack = { currentEntry = null })
+                        }
+                    }
                 }
             }
         }

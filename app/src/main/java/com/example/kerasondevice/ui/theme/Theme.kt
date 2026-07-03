@@ -71,7 +71,7 @@ private val LightColorScheme = lightColorScheme(
 )
 
 @Composable
-fun LiteRTLMDemoTheme(
+fun KerasOnDeviceTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit

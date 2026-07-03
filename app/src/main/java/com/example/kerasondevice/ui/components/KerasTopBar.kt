@@ -66,7 +66,7 @@ fun KerasTopBar(
                 Spacer(modifier = Modifier.size(12.dp))
                 Column {
                     Text(
-                        text = "LiteRT-LM Demo",
+                        text = "Keras On-Device",
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.SemiBold
                         )
