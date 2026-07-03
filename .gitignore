@@ -1,0 +1,23 @@
+# Gradle
+.gradle/
+build/
+
+# Android Studio
+.idea/
+*.iml
+.navigation/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Local configuration
+local.properties
+
+# OS
+.DS_Store
+
+# Logs
+*.log
+
+# Local debug wiki (untracked)
+docs/wiki/
