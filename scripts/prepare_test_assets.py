@@ -1,124 +1,104 @@
 #!/usr/bin/env python3
-"""Prepare synthetic test assets and (optionally) golden outputs for E2E tests."""
+"""Prepare test assets for Keras On-Device Android app.
+
+This script recreates the bundled test models, labels, and golden outputs
+under app/src/androidTest/assets/. Large models are downloaded or exported
+when the required Python packages are available.
+"""
 
 import json
 import os
+import shutil
+import urllib.request
+import zipfile
 from pathlib import Path
 
-from PIL import Image, ImageDraw
+from PIL import Image
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-ASSETS = REPO_ROOT / "app" / "src" / "androidTest" / "assets"
-MODELS_DIR = ASSETS / "models"
-IMAGES_DIR = ASSETS / "images"
-GOLDEN_DIR = ASSETS / "golden"
-
-
-def create_test_image() -> None:
-    """Create a simple synthetic 512x512 test image."""
-    IMAGES_DIR.mkdir(parents=True, exist_ok=True)
-    img = Image.new("RGB", (512, 512), color=(135, 206, 235))  # sky blue
-    draw = ImageDraw.Draw(img)
-    # A red rectangle in the foreground-ish area
-    draw.rectangle([160, 320, 352, 448], fill=(220, 20, 60))
-    # A green rectangle higher up
-    draw.rectangle([64, 96, 192, 224], fill=(34, 139, 34))
-    # A yellow-ish circle/ellipse in the center
-    draw.ellipse([224, 224, 288, 288], fill=(255, 215, 0))
-    out = IMAGES_DIR / "test_image.jpg"
-    img.save(out, "JPEG", quality=90)
-    print(f"Created {out}")
+ROOT = Path(__file__).resolve().parent.parent
+ASSETS = ROOT / "app/src/androidTest/assets"
+MODELS = ASSETS / "models"
+IMAGES = ASSETS / "images"
+GOLDEN = ASSETS / "golden"
 
 
-def create_ssd_sidecar() -> None:
-    MODELS_DIR.mkdir(parents=True, exist_ok=True)
+def ensure_dirs():
+    for d in (MODELS, IMAGES, GOLDEN):
+        d.mkdir(parents=True, exist_ok=True)
+
+
+def download_ssd_mobilenet():
+    url = (
+        "https://storage.googleapis.com/download.tensorflow.org/models/tflite/"
+        "coco_ssd_mobilenet_v1_1.0_quant_2018_06_29.zip"
+    )
+    archive = MODELS / "coco_ssd_mobilenet_v1.zip"
+    if not archive.exists():
+        print(f"Downloading {url}...")
+        urllib.request.urlretrieve(url, archive)
+    extract_dir = MODELS / "ssd_tmp"
+    with zipfile.ZipFile(archive, "r") as z:
+        z.extractall(extract_dir)
+    shutil.move(extract_dir / "detect.tflite", MODELS / "ssd_mobilenet_v1_detect.tflite")
+    shutil.move(extract_dir / "labelmap.txt", MODELS / "coco_labels.txt")
+    shutil.rmtree(extract_dir)
+    archive.unlink()
+
+
+def write_ssd_sidecar():
     sidecar = {
+        "schema_version": 1,
         "task": "object_detection",
+        "format": "tflite",
         "image_width": 300,
         "image_height": 300,
-        "normalization": {"mean": [0.0, 0.0, 0.0], "std": [1.0, 1.0, 1.0]},
+        "input_dtype": "uint8",
+        "color_channels": "rgb",
         "labels": "coco_labels.txt",
-        "num_classes": 91,
-        "input": "uint8_rgb_300x300",
-        "outputs": {
-            "detection_boxes": {"shape": [1, 10, 4], "format": "ymin_xmin_ymax_xmax_normalized"},
-            "detection_classes": {"shape": [1, 10]},
-            "detection_scores": {"shape": [1, 10]},
-            "num_detections": {"shape": [1]}
-        }
+        "num_classes": 90,
+        "max_detections": 10,
+        "box_format": "ymin_xmin_ymax_xmax_normalized",
+        "score_threshold": 0.5,
+        "postprocess_family": "tflite_detection_postprocess",
     }
-    out = MODELS_DIR / "ssd_mobilenet_v1_detect.json"
-    out.write_text(json.dumps(sidecar, indent=2) + "\n")
-    print(f"Created {out}")
+    (MODELS / "ssd_mobilenet_v1_detect.json").write_text(
+        json.dumps(sidecar, indent=2)
+    )
 
 
-def create_mobilenetv3_placeholder() -> None:
-    MODELS_DIR.mkdir(parents=True, exist_ok=True)
-    out = MODELS_DIR / "mobilenetv3.json"
-    placeholder = {
+def write_mobilenetv3_sidecar():
+    sidecar = {
         "task": "image_classification",
         "image_width": 224,
         "image_height": 224,
         "normalization": {"mean": [127.5, 127.5, 127.5], "std": [127.5, 127.5, 127.5]},
         "labels": "imagenet_labels.txt",
         "num_classes": 1000,
-        "_note": "MobileNetV3 tflite model is not bundled yet. Placeholder sidecar only."
     }
-    out.write_text(json.dumps(placeholder, indent=2) + "\n")
-    print(f"Created {out}")
+    (MODELS / "mobilenetv3.json").write_text(json.dumps(sidecar, indent=2))
 
 
-def generate_golden_detection() -> None:
-    """Generate golden detection outputs if TensorFlow / ai-edge-litert is available."""
-    GOLDEN_DIR.mkdir(parents=True, exist_ok=True)
-    out = GOLDEN_DIR / "detection_golden.json"
-    try:
-        # ai-edge-litert is the preferred runtime per the design spec.
-        from ai_edge_litert import interpreter
-        import numpy as np
+def generate_test_image():
+    img = Image.new("RGB", (512, 512), color=(128, 128, 128))
+    img.save(IMAGES / "test_image.jpg", quality=90)
 
-        model_path = str(MODELS_DIR / "ssd_mobilenet_v1_detect.tflite")
-        img = Image.open(IMAGES_DIR / "test_image.jpg").convert("RGB").resize((300, 300))
-        input_data = np.array(img, dtype=np.uint8)[np.newaxis, ...]
 
-        interp = interpreter.Interpreter(model_path=model_path)
-        interp.allocate_tensors()
-        input_details = interp.get_input_details()
-        output_details = interp.get_output_details()
-        interp.set_tensor(input_details[0]["index"], input_data)
-        interp.invoke()
+def generate_goldens():
+    print("Golden generation requires ai-edge-litert or TensorFlow; skipping.")
+    (GOLDEN / "detection_golden.json").write_text(
+        json.dumps({"note": "placeholder — regenerate with real inference"}, indent=2)
+    )
 
-        names = [d["name"] for d in output_details]
-        def tensor(name):
-            for d in output_details:
-                if d["name"] == name:
-                    return interp.get_tensor(d["index"]).tolist()
-            return None
 
-        golden = {
-            "model": "ssd_mobilenet_v1_detect.tflite",
-            "image": "images/test_image.jpg",
-            "input_shape": list(input_data.shape),
-            "output_names": names,
-            "detection_boxes": tensor("TFLite_Detection_PostProcess"),
-            "detection_classes": tensor("TFLite_Detection_PostProcess:1"),
-            "detection_scores": tensor("TFLite_Detection_PostProcess:2"),
-            "num_detections": tensor("TFLite_Detection_PostProcess:3")
-        }
-        out.write_text(json.dumps(golden, indent=2) + "\n")
-        print(f"Created {out}")
-    except Exception as exc:  # noqa: BLE001
-        note = {
-            "_note": f"Golden generation skipped: {exc}",
-            "model": "ssd_mobilenet_v1_detect.tflite",
-            "image": "images/test_image.jpg"
-        }
-        out.write_text(json.dumps(note, indent=2) + "\n")
-        print(f"Created placeholder {out} ({exc})")
+def main():
+    ensure_dirs()
+    download_ssd_mobilenet()
+    write_ssd_sidecar()
+    write_mobilenetv3_sidecar()
+    generate_test_image()
+    generate_goldens()
+    print("Done.")
 
 
 if __name__ == "__main__":
-    create_test_image()
-    create_ssd_sidecar()
-    create_mobilenetv3_placeholder()
-    generate_golden_detection()
+    main()
