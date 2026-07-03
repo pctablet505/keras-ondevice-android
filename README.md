@@ -54,6 +54,8 @@ Then run:
 ./gradlew connectedDebugAndroidTest
 ```
 
+> The debug APK is automatically reinstalled after instrumented tests finish, so the demo remains on the device for manual verification. This is handled by an `afterEvaluate` `finalizedBy installDebug` hook in `app/build.gradle.kts` because AGP registers `connectedDebugAndroidTest` after the `android {}` block is evaluated.
+>
 > Test assets (images, small SSD model, labels) live in `app/src/androidTest/assets`. The tests read them through the instrumentation context and copy required files to the target app's `filesDir`. Large models are discovered from `/data/local/tmp`.
 
 ## Model exports

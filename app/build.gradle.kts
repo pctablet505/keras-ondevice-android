@@ -19,6 +19,8 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
+        testInstrumentationRunnerArguments["clearPackageData"] = "false"
+
         androidResources {
             noCompress += listOf("tflite", "litertlm")
         }
@@ -52,6 +54,15 @@ android {
         unitTests {
             isIncludeAndroidResources = true
         }
+    }
+}
+
+// Keep the debug APK installed after instrumented tests finish.
+// AGP registers connectedDebugAndroidTest after the android {} block is evaluated,
+// so we must defer the task lookup until Gradle's configuration phase is complete.
+afterEvaluate {
+    tasks.named("connectedDebugAndroidTest").configure {
+        finalizedBy(tasks.named("installDebug"))
     }
 }
 
