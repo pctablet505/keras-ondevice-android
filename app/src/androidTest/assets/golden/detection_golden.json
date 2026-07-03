@@ -1,0 +1,5 @@
+{
+  "_note": "Golden generation skipped: No module named 'ai_edge_litert'",
+  "model": "ssd_mobilenet_v1_detect.tflite",
+  "image": "images/test_image.jpg"
+}

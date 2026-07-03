@@ -1,0 +1,47 @@
+{
+  "task": "object_detection",
+  "image_width": 300,
+  "image_height": 300,
+  "normalization": {
+    "mean": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "std": [
+      1.0,
+      1.0,
+      1.0
+    ]
+  },
+  "labels": "coco_labels.txt",
+  "num_classes": 91,
+  "input": "uint8_rgb_300x300",
+  "outputs": {
+    "detection_boxes": {
+      "shape": [
+        1,
+        10,
+        4
+      ],
+      "format": "ymin_xmin_ymax_xmax_normalized"
+    },
+    "detection_classes": {
+      "shape": [
+        1,
+        10
+      ]
+    },
+    "detection_scores": {
+      "shape": [
+        1,
+        10
+      ]
+    },
+    "num_detections": {
+      "shape": [
+        1
+      ]
+    }
+  }
+}
