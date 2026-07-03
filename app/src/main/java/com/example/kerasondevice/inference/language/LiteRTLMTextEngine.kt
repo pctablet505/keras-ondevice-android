@@ -11,7 +11,9 @@ import com.google.ai.edge.litertlm.ExperimentalFlags
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.withContext
+import java.io.Closeable
 import java.io.File
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Optimised text-generation engine backed by the LiteRT-LM runtime.
@@ -20,9 +22,10 @@ import java.io.File
  * exposes a simple streaming [generate] API that can be compared against the
  * low-level custom [LiteRTTextEngine] path.
  */
-class LiteRTLMTextEngine private constructor(private val engine: Engine) {
+class LiteRTLMTextEngine private constructor(private val engine: Engine) : Closeable {
 
     private val conversation: Conversation = engine.createConversation()
+    private val closed = AtomicBoolean(false)
 
     /**
      * Streams a response for [prompt]. [onToken] is invoked for every decoded
@@ -43,7 +46,8 @@ class LiteRTLMTextEngine private constructor(private val engine: Engine) {
         GenerationResult("", tokenCount, latency)
     }
 
-    fun close() {
+    override fun close() {
+        if (closed.getAndSet(true)) return
         try {
             conversation.close()
             engine.close()

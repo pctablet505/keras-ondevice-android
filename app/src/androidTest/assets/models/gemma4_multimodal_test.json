@@ -1,0 +1,4 @@
+{
+  "task": "multimodal",
+  "_note": "Sidecar for the bundled gemma4_multimodal_test.litertlm asset. Placeholder config used for ModelHandle validation."
+}

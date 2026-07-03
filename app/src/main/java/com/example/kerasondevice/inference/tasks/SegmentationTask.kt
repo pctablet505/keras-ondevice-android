@@ -29,33 +29,35 @@ class SegmentationTask : Task<Bitmap, MaskResult> {
     override val preferredModels = listOf("deeplabv3.tflite")
 
     override suspend fun run(model: ModelHandle, input: Bitmap): TaskResult<MaskResult> {
-        val config = model.config ?: return TaskResult.Error("Missing sidecar config")
-        val interpreter = LiteRTInterpreter(model.file)
-        val buffer = ImagePreprocessor().preprocess(input, config)
+        val config = model.config
 
-        val shape = interpreter.getOutputShape(0)
-        val output = createFloatArray(shape)
-        val outputs = mutableMapOf<Int, Any>(0 to output)
+        return try {
+            LiteRTInterpreter(model.file).use { interpreter ->
+                val buffer = ImagePreprocessor().preprocess(input, config)
 
-        val start = System.currentTimeMillis()
-        interpreter.run(arrayOf(buffer), outputs)
-        val latency = System.currentTimeMillis() - start
+                val shape = interpreter.getOutputShape(0)
+                val output = createFloatArray(shape)
+                val outputs = mutableMapOf<Int, Any>(0 to output)
 
-        val labels = config.labels?.let { labelFile ->
-            File(model.file.parent, labelFile).takeIf { it.exists() }?.readLines()
-        }.orEmpty()
+                val start = System.currentTimeMillis()
+                interpreter.run(arrayOf(buffer), outputs)
+                val latency = System.currentTimeMillis() - start
 
-        val (mask, width, height, counts) = when (shape.size) {
-            4 -> parse4D(output as Array<Array<Array<FloatArray>>>, labels)
-            3 -> parse3D(output as Array<Array<FloatArray>>, labels)
-            2 -> parse2D(output as Array<FloatArray>, labels)
-            else -> {
-                interpreter.close()
-                return TaskResult.Error("Unsupported segmentation output shape: ${shape.toList()}")
+                val labels = config.labels?.let { labelFile ->
+                    File(model.file.parent, labelFile).takeIf { it.exists() }?.readLines()
+                }.orEmpty()
+
+                val (mask, width, height, counts) = when (shape.size) {
+                    4 -> parse4D(output as Array<Array<Array<FloatArray>>>, labels)
+                    3 -> parse3D(output as Array<Array<FloatArray>>, labels)
+                    2 -> parse2D(output as Array<FloatArray>, labels)
+                    else -> return@use TaskResult.Error("Unsupported segmentation output shape: ${shape.toList()}")
+                }
+                TaskResult.Success(MaskResult(mask, width, height, counts), latency)
             }
+        } catch (e: Exception) {
+            TaskResult.Error(e.message ?: "Inference failed")
         }
-        interpreter.close()
-        return TaskResult.Success(MaskResult(mask, width, height, counts), latency)
     }
 
     private fun parse4D(

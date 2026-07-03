@@ -5,10 +5,12 @@ import android.util.Log
 import com.example.kerasondevice.inference.sampler.Sampler
 import com.example.kerasondevice.inference.tokenizer.GemmaTokenizer
 import org.tensorflow.lite.Interpreter
+import java.io.Closeable
 import java.io.File
 import java.io.FileInputStream
 import java.nio.MappedByteBuffer
 import java.nio.channels.FileChannel
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Low-level custom LiteRT text-generation engine.
@@ -21,9 +23,10 @@ class LiteRTTextEngine(
     context: Context,
     private val modelFile: File,
     vocabFile: File
-) {
+) : Closeable {
     private val interpreter: Interpreter
     private val tokenizer = GemmaTokenizer(vocabFile)
+    private val closed = AtomicBoolean(false)
 
     init {
         val buffer = loadModelFile(modelFile)
@@ -168,7 +171,10 @@ class LiteRTTextEngine(
         val latencyMs: Long
     )
 
-    fun close() = interpreter.close()
+    override fun close() {
+        if (closed.getAndSet(true)) return
+        interpreter.close()
+    }
 
     companion object {
         private const val TAG = "LiteRTTextEngine"

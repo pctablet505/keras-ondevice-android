@@ -1,0 +1,10 @@
+{
+  "task": "depth_estimation",
+  "image_width": 256,
+  "image_height": 256,
+  "normalization": {
+    "mean": [123.675, 116.28, 103.53],
+    "std": [58.395, 57.12, 57.375]
+  },
+  "_note": "MiDaS tflite model is not bundled yet. Placeholder sidecar only."
+}

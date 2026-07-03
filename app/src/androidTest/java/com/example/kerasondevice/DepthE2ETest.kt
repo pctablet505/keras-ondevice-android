@@ -22,6 +22,7 @@ class DepthE2ETest {
     @Before
     fun setUp() {
         assumeAssetExists("models/midas.tflite")
+        assumeAssetExists("models/midas.json")
     }
 
     @Test

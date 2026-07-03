@@ -35,39 +35,43 @@ class ObjectDetectionTask(
         model: ModelHandle,
         input: Bitmap
     ): TaskResult<List<BoundingBox>> {
-        val config = model.config ?: return TaskResult.Error("Missing sidecar config")
+        val config = model.config
         val labelList = labels(model.file)
 
-        val width = config.image_width ?: DEFAULT_SIZE
-        val height = config.image_height ?: DEFAULT_SIZE
-        val interpreter = LiteRTInterpreter(model.file)
-        val scaled = Bitmap.createScaledBitmap(input, width, height, true)
-        val inputBuffer = rgbBytesToBuffer(scaled)
+        return try {
+            LiteRTInterpreter(model.file).use { interpreter ->
+                val width = config.image_width ?: DEFAULT_SIZE
+                val height = config.image_height ?: DEFAULT_SIZE
+                val scaled = Bitmap.createScaledBitmap(input, width, height, true)
+                val inputBuffer = rgbBytesToBuffer(scaled)
 
-        val outputLocations = Array(1) { Array(DETECTION_COUNT) { FloatArray(4) } }
-        val outputClasses = Array(1) { FloatArray(DETECTION_COUNT) }
-        val outputScores = Array(1) { FloatArray(DETECTION_COUNT) }
-        val numDetections = FloatArray(1)
-        val outputs = mutableMapOf<Int, Any>(
-            0 to outputLocations,
-            1 to outputClasses,
-            2 to outputScores,
-            3 to numDetections
-        )
+                val outputLocations = Array(1) { Array(DETECTION_COUNT) { FloatArray(4) } }
+                val outputClasses = Array(1) { FloatArray(DETECTION_COUNT) }
+                val outputScores = Array(1) { FloatArray(DETECTION_COUNT) }
+                val numDetections = FloatArray(1)
+                val outputs = mutableMapOf<Int, Any>(
+                    0 to outputLocations,
+                    1 to outputClasses,
+                    2 to outputScores,
+                    3 to numDetections
+                )
 
-        val start = System.currentTimeMillis()
-        interpreter.run(arrayOf(inputBuffer), outputs)
-        val latency = System.currentTimeMillis() - start
+                val start = System.currentTimeMillis()
+                interpreter.run(arrayOf(inputBuffer), outputs)
+                val latency = System.currentTimeMillis() - start
 
-        val boxes = parseOutputs(
-            outputLocations,
-            outputClasses,
-            outputScores,
-            numDetections,
-            labelList
-        )
-        interpreter.close()
-        return TaskResult.Success(boxes, latency)
+                val boxes = parseOutputs(
+                    outputLocations,
+                    outputClasses,
+                    outputScores,
+                    numDetections,
+                    labelList
+                )
+                TaskResult.Success(boxes, latency)
+            }
+        } catch (e: Exception) {
+            TaskResult.Error(e.message ?: "Inference failed")
+        }
     }
 
     private fun rgbBytesToBuffer(bitmap: Bitmap): ByteBuffer {

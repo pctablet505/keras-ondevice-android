@@ -4,6 +4,9 @@ import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.kerasondevice.domain.model.ModelFormat
+import com.example.kerasondevice.domain.model.ModelHandle
+import com.example.kerasondevice.domain.model.ModelLocator
 import com.example.kerasondevice.inference.language.LiteRTLMTextEngine
 import com.example.kerasondevice.inference.language.LiteRTTextEngine
 import com.example.kerasondevice.inference.sampler.GreedySampler
@@ -43,6 +46,9 @@ class LanguageViewModel(application: Application) : AndroidViewModel(application
         val topK: Int = 50,
         val topP: Float = 0.9f,
         val stripPrompt: Boolean = true,
+        val availableModels: List<ModelHandle> = emptyList(),
+        val selectedModelIndex: Int = 0,
+        val modelError: String? = null,
         val error: String? = null
     )
 
@@ -52,8 +58,26 @@ class LanguageViewModel(application: Application) : AndroidViewModel(application
     private val historyLitert = mutableListOf<String>()
     private val historyLitertlm = mutableListOf<String>()
 
+    init {
+        val context = getApplication<Application>()
+        val allModels = ModelLocator(context).discover()
+        val languageModels = allModels.filter { isLanguageModel(it) }
+        val initialIndex = selectIndexForMode(languageModels, _state.value.mode)
+        _state.value = _state.value.copy(
+            availableModels = languageModels,
+            selectedModelIndex = initialIndex
+        ).withModelError()
+    }
+
     fun setMode(mode: Mode) {
-        _state.value = _state.value.copy(mode = mode, output = "", stats = "", error = null)
+        val newIndex = selectIndexForMode(_state.value.availableModels, mode)
+        _state.value = _state.value.copy(
+            mode = mode,
+            output = "",
+            stats = "",
+            error = null,
+            selectedModelIndex = newIndex
+        ).withModelError()
     }
 
     fun setPrompt(prompt: String) {
@@ -84,9 +108,21 @@ class LanguageViewModel(application: Application) : AndroidViewModel(application
         _state.value = _state.value.copy(stripPrompt = strip)
     }
 
+    fun selectModel(index: Int) {
+        val validIndex = index.coerceIn(0, (_state.value.availableModels.size - 1).coerceAtLeast(0))
+        _state.value = _state.value.copy(
+            selectedModelIndex = validIndex,
+            output = "",
+            stats = "",
+            error = null
+        ).withModelError()
+    }
+
     fun generate() {
         val current = _state.value
         if (current.prompt.isBlank() || current.isGenerating) return
+        if (current.availableModels.getOrNull(current.selectedModelIndex) == null) return
+        if (current.modelError != null) return
 
         viewModelScope.launch(Dispatchers.IO) {
             _state.value = current.copy(isGenerating = true, output = "", stats = "", error = null)
@@ -107,14 +143,14 @@ class LanguageViewModel(application: Application) : AndroidViewModel(application
 
     private fun generateLitert(current: UiState) {
         val context = getApplication<Application>()
-        val modelFile = File(context.filesDir, "gemma3_270m.tflite")
-        val vocabFile = File(context.filesDir, "vocabulary.spm")
+        val model = current.availableModels[current.selectedModelIndex]
+        val vocabFile = model.file.resolveSibling("vocabulary.spm")
 
-        if (!modelFile.exists()) {
-            throw IllegalStateException("Model not found: ${modelFile.name}. Push it to the app files dir.")
+        if (!model.file.exists()) {
+            throw IllegalStateException("Model not found: ${model.file.name}. Push it to the app files dir.")
         }
         if (!vocabFile.exists()) {
-            throw IllegalStateException("Tokenizer vocab not found: ${vocabFile.name}.")
+            throw IllegalStateException("Missing vocabulary.spm")
         }
 
         val sampler = when (current.samplerType) {
@@ -123,44 +159,76 @@ class LanguageViewModel(application: Application) : AndroidViewModel(application
             SamplerType.TOP_P -> TopPSampler(current.topP, current.temperature)
         }
 
-        val engine = LiteRTTextEngine(context, modelFile, vocabFile)
-        val result = engine.generate(
-            prompt = current.prompt,
-            maxLength = current.maxLength,
-            sampler = sampler,
-            stripPrompt = current.stripPrompt
-        )
-        engine.close()
+        LiteRTTextEngine(context, model.file, vocabFile).use { engine ->
+            val result = engine.generate(
+                prompt = current.prompt,
+                maxLength = current.maxLength,
+                sampler = sampler,
+                stripPrompt = current.stripPrompt
+            )
 
-        historyLitert.add(result.text)
-        _state.value = current.copy(
-            output = result.text,
-            isGenerating = false,
-            stats = "${result.tokenCount} tokens in ${result.latencyMs} ms"
-        )
+            historyLitert.add(result.text)
+            _state.value = current.copy(
+                output = result.text,
+                isGenerating = false,
+                stats = "${result.tokenCount} tokens in ${result.latencyMs} ms"
+            )
+        }
     }
 
     private suspend fun generateLitertlm(current: UiState) {
         val context = getApplication<Application>()
-        val modelFile = File(context.filesDir, "gemma3_270m_it.litertlm")
+        val model = current.availableModels[current.selectedModelIndex]
 
-        if (!modelFile.exists()) {
-            throw IllegalStateException("Model not found: ${modelFile.name}. Push it to the app files dir.")
+        if (!model.file.exists()) {
+            throw IllegalStateException("Model not found: ${model.file.name}. Push it to the app files dir.")
         }
 
-        val engine = LiteRTLMTextEngine.create(context, modelFile)
-        val sb = StringBuilder()
-        val result = engine.generate(current.prompt) { token ->
-            sb.append(token)
-            _state.value = current.copy(output = sb.toString())
-        }
-        engine.close()
+        LiteRTLMTextEngine.create(context, model.file).use { engine ->
+            val sb = StringBuilder()
+            val result = engine.generate(current.prompt) { token ->
+                sb.append(token)
+                _state.value = current.copy(output = sb.toString())
+            }
 
-        historyLitertlm.add(sb.toString())
-        _state.value = current.copy(
-            isGenerating = false,
-            stats = "${result.tokenCount} tokens in ${result.latencyMs} ms"
-        )
+            historyLitertlm.add(sb.toString())
+            _state.value = current.copy(
+                isGenerating = false,
+                stats = "${result.tokenCount} tokens in ${result.latencyMs} ms"
+            )
+        }
+    }
+
+    private fun isLanguageModel(handle: ModelHandle): Boolean {
+        if (handle.format == ModelFormat.LITERTLM) return true
+        if (handle.format == ModelFormat.TFLITE) {
+            if (handle.config.task.equals("text_generation", ignoreCase = true)) return true
+            if (handle.file.name.equals("gemma3_270m.tflite", ignoreCase = true)) return true
+        }
+        return false
+    }
+
+    private fun matchesMode(handle: ModelHandle, mode: Mode): Boolean = when (mode) {
+        Mode.LITERT -> handle.format == ModelFormat.TFLITE
+        Mode.LITERTLM -> handle.format == ModelFormat.LITERTLM
+    }
+
+    private fun selectIndexForMode(models: List<ModelHandle>, mode: Mode): Int {
+        val modeIndex = models.indexOfFirst { matchesMode(it, mode) }
+        return if (modeIndex >= 0) modeIndex else 0
+    }
+
+    private fun UiState.withModelError(): UiState {
+        val model = availableModels.getOrNull(selectedModelIndex)
+        val error = when {
+            model == null -> null
+            mode == Mode.LITERT && model.format == ModelFormat.TFLITE -> {
+                val vocabFile = model.file.resolveSibling("vocabulary.spm")
+                if (!vocabFile.exists()) "Missing vocabulary.spm" else null
+            }
+            else -> null
+        }
+        return copy(modelError = error)
     }
 
     companion object {

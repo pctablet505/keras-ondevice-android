@@ -4,11 +4,12 @@ import android.content.Context
 import android.util.Log
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.google.ai.edge.litertlm.Backend
 import com.google.ai.edge.litertlm.Engine
 import com.google.ai.edge.litertlm.EngineConfig
-import com.google.ai.edge.litertlm.Backend
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
@@ -16,12 +17,16 @@ import kotlin.system.measureTimeMillis
 
 @RunWith(AndroidJUnit4::class)
 class QuantizedModelTest {
+
     @Test
     fun testQuantized270M() = runBlocking<Unit> {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val modelFile = File("/data/local/tmp/gemma3_270m_it_wi8afp32.litertlm")
-            .takeIf { it.exists() }
-            ?: throw IllegalStateException("Quantized model not found")
+
+        assumeTrue(
+            "Quantized model not found at ${modelFile.absolutePath}; skipping",
+            modelFile.exists()
+        )
 
         Log.i("QuantizedTest", "Model file: ${modelFile.absolutePath}, size=${modelFile.length()}")
         val config = EngineConfig(
@@ -44,6 +49,7 @@ class QuantizedModelTest {
             } ?: throw IllegalStateException("Generation timed out")
         }
         Log.i("QuantizedTest", "Response (${generationTime}ms): $sb")
+        assert(sb.isNotBlank()) { "Expected non-empty generation response" }
         conversation.close()
         engine.close()
         Log.i("QuantizedTest", "=== Quantized 270M test PASSED ===")

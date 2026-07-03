@@ -1,0 +1,12 @@
+{
+  "task": "semantic_segmentation",
+  "image_width": 257,
+  "image_height": 257,
+  "normalization": {
+    "mean": [127.5, 127.5, 127.5],
+    "std": [127.5, 127.5, 127.5]
+  },
+  "labels": "pascal_labels.txt",
+  "num_classes": 21,
+  "_note": "DeepLabV3 tflite model is not bundled yet. Placeholder sidecar only."
+}

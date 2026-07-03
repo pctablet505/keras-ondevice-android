@@ -33,32 +33,36 @@ class ImageClassificationTask(
         model: ModelHandle,
         input: Bitmap
     ): TaskResult<List<Classification>> {
-        val config = model.config ?: return TaskResult.Error("Missing sidecar config")
+        val config = model.config
         val labelList = labels(model.file)
 
-        val interpreter = LiteRTInterpreter(model.file)
-        val buffer = ImagePreprocessor().preprocess(input, config)
+        return try {
+            LiteRTInterpreter(model.file).use { interpreter ->
+                val buffer = ImagePreprocessor().preprocess(input, config)
 
-        val classCount = config.num_classes ?: labelList.size
-        val outputArray = FloatArray(classCount)
-        val outputs = mutableMapOf<Int, Any>(0 to outputArray)
+                val classCount = config.num_classes ?: labelList.size
+                val outputArray = FloatArray(classCount)
+                val outputs = mutableMapOf<Int, Any>(0 to outputArray)
 
-        val start = System.currentTimeMillis()
-        interpreter.run(arrayOf(buffer), outputs)
-        val latency = System.currentTimeMillis() - start
+                val start = System.currentTimeMillis()
+                interpreter.run(arrayOf(buffer), outputs)
+                val latency = System.currentTimeMillis() - start
 
-        val probs = outputs[0] as? FloatArray
-            ?: return TaskResult.Error("Unexpected classification output type")
+                val probs = outputs[0] as? FloatArray
+                    ?: return@use TaskResult.Error("Unexpected classification output type")
 
-        val top5 = PriorityQueue(compareByDescending<Classification> { it.score })
-        probs.forEachIndexed { idx, score ->
-            if (score.isFinite()) {
-                val label = labelList.getOrElse(idx) { "class_$idx" }
-                top5.add(Classification(label, score))
-                if (top5.size > 5) top5.poll()
+                val top5 = PriorityQueue(compareByDescending<Classification> { it.score })
+                probs.forEachIndexed { idx, score ->
+                    if (score.isFinite()) {
+                        val label = labelList.getOrElse(idx) { "class_$idx" }
+                        top5.add(Classification(label, score))
+                        if (top5.size > 5) top5.poll()
+                    }
+                }
+                TaskResult.Success(top5.sortedByDescending { it.score }, latency)
             }
+        } catch (e: Exception) {
+            TaskResult.Error(e.message ?: "Inference failed")
         }
-        interpreter.close()
-        return TaskResult.Success(top5.sortedByDescending { it.score }, latency)
     }
 }

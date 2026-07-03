@@ -4,7 +4,6 @@ import androidx.test.core.app.ApplicationProvider
 import com.example.kerasondevice.domain.config.ModelConfig
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -41,6 +40,14 @@ class ModelLocatorTest {
 
         val litertlmFile = File(root, "gemma.litertlm")
         litertlmFile.writeText("dummy litertlm")
+        val litertlmSidecar = File(root, "gemma.json")
+        litertlmSidecar.writeText(
+            """
+            {
+              "task": "text_generation"
+            }
+            """.trimIndent()
+        )
 
         val locator = ModelLocator(ApplicationProvider.getApplicationContext())
         val handles = locator.discover(listOf(root))
@@ -50,12 +57,33 @@ class ModelLocatorTest {
         val tfliteHandle = handles.first { it.file.name == "mobilenetv3.tflite" }
         assertEquals(ModelFormat.TFLITE, tfliteHandle.format)
         assertNotNull(tfliteHandle.config)
-        assertEquals("image_classification", tfliteHandle.config?.task)
-        assertEquals(224, tfliteHandle.config?.image_width)
+        assertEquals("image_classification", tfliteHandle.config.task)
+        assertEquals(224, tfliteHandle.config.image_width)
 
         val litertlmHandle = handles.first { it.file.name == "gemma.litertlm" }
         assertEquals(ModelFormat.LITERTLM, litertlmHandle.format)
-        assertNull(litertlmHandle.config)
+        assertNotNull(litertlmHandle.config)
+        assertEquals("text_generation", litertlmHandle.config.task)
+    }
+
+    @Test
+    fun discoverOmitsModelsWithoutSidecar() {
+        val root = File(RuntimeEnvironment.getApplication().filesDir, "locator-sidecar-required")
+        root.deleteRecursively()
+        root.mkdirs()
+
+        val modelWithSidecar = File(root, "valid.tflite")
+        modelWithSidecar.writeText("dummy")
+        File(root, "valid.json").writeText("{\"task\":\"depth_estimation\"}")
+
+        val modelWithoutSidecar = File(root, "orphan.tflite")
+        modelWithoutSidecar.writeText("dummy")
+
+        val locator = ModelLocator(ApplicationProvider.getApplicationContext())
+        val handles = locator.discover(listOf(root))
+
+        assertEquals(1, handles.size)
+        assertEquals("valid.tflite", handles.first().file.name)
     }
 
     @Test
@@ -65,6 +93,7 @@ class ModelLocatorTest {
         root.mkdirs()
 
         File(root, "model.tflite").writeText("dummy")
+        File(root, "model.json").writeText("{\"task\":\"image_classification\"}")
         File(root, "readme.txt").writeText("ignore me")
         File(root, "model.bin").writeText("ignore me too")
 

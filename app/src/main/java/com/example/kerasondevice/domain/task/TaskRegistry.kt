@@ -33,8 +33,8 @@ object TaskRegistry {
      * [Task.preferredModels] list.
      */
     fun matches(task: Task<*, *>, model: ModelHandle): Boolean {
-        val configTask = model.config?.task
-        if (configTask != null && taskIdMatches(configTask, task.id)) {
+        val configTask = model.config.task
+        if (taskIdMatches(configTask, task.id)) {
             return true
         }
         return task.preferredModels.any { preferred ->

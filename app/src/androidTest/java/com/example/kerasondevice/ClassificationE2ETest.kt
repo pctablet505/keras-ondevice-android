@@ -22,6 +22,7 @@ class ClassificationE2ETest {
     @Before
     fun setUp() {
         assumeAssetExists("models/mobilenetv3.tflite")
+        assumeAssetExists("models/imagenet_labels.txt")
     }
 
     @Test

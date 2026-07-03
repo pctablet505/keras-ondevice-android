@@ -28,21 +28,26 @@ class DepthEstimationTask : Task<Bitmap, DepthResult> {
     override val preferredModels = listOf("midas.tflite")
 
     override suspend fun run(model: ModelHandle, input: Bitmap): TaskResult<DepthResult> {
-        val config = model.config ?: return TaskResult.Error("Missing sidecar config")
-        val interpreter = LiteRTInterpreter(model.file)
-        val buffer = ImagePreprocessor().preprocess(input, config)
+        val config = model.config
 
-        val shape = interpreter.getOutputShape(0)
-        val output = createFloatArray(shape)
-        val outputs = mutableMapOf<Int, Any>(0 to output)
+        return try {
+            LiteRTInterpreter(model.file).use { interpreter ->
+                val buffer = ImagePreprocessor().preprocess(input, config)
 
-        val start = System.currentTimeMillis()
-        interpreter.run(arrayOf(buffer), outputs)
-        val latency = System.currentTimeMillis() - start
+                val shape = interpreter.getOutputShape(0)
+                val output = createFloatArray(shape)
+                val outputs = mutableMapOf<Int, Any>(0 to output)
 
-        val (depthMap, width, height) = flattenDepthOutput(output, shape)
-        interpreter.close()
-        return TaskResult.Success(DepthResult(depthMap, width, height), latency)
+                val start = System.currentTimeMillis()
+                interpreter.run(arrayOf(buffer), outputs)
+                val latency = System.currentTimeMillis() - start
+
+                val (depthMap, width, height) = flattenDepthOutput(output, shape)
+                TaskResult.Success(DepthResult(depthMap, width, height), latency)
+            }
+        } catch (e: Exception) {
+            TaskResult.Error(e.message ?: "Inference failed")
+        }
     }
 
     private fun flattenDepthOutput(output: Any, shape: IntArray): Triple<FloatArray, Int, Int> {

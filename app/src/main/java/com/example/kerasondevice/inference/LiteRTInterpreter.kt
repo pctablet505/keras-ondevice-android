@@ -1,6 +1,7 @@
 package com.example.kerasondevice.inference
 
 import org.tensorflow.lite.Interpreter
+import java.io.Closeable
 import java.io.File
 import java.io.FileInputStream
 import java.nio.MappedByteBuffer
@@ -14,7 +15,7 @@ import java.nio.channels.FileChannel
  * buffers. It also exposes [getOutputShape] so tasks can allocate output buffers
  * whose dimensions match the loaded model signature.
  */
-class LiteRTInterpreter(modelFile: File) {
+class LiteRTInterpreter(modelFile: File) : Closeable {
 
     private val interpreter: Interpreter
 
@@ -34,7 +35,7 @@ class LiteRTInterpreter(modelFile: File) {
         return interpreter.getOutputTensor(outputIndex).shape()
     }
 
-    fun close() {
+    override fun close() {
         interpreter.close()
     }
 

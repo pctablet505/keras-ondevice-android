@@ -8,6 +8,7 @@ import com.google.ai.edge.litertlm.Backend
 import com.google.ai.edge.litertlm.Engine
 import com.google.ai.edge.litertlm.EngineConfig
 import kotlinx.coroutines.runBlocking
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
@@ -26,7 +27,10 @@ class MultimodalModelTest {
 
         val modelFile = File("/data/local/tmp/gemma4_multimodal_test.litertlm")
             .takeIf { it.exists() }
-            ?: throw IllegalStateException("gemma4_multimodal_test.litertlm not found on device")
+            ?: run {
+                assumeTrue("gemma4_multimodal_test.litertlm not found on device", false)
+                return@runBlocking
+            }
 
         Log.i(TAG, "Model file: ${modelFile.absolutePath}, size=${modelFile.length()}")
 

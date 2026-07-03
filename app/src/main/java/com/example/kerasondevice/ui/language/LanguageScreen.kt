@@ -1,6 +1,7 @@
 package com.example.kerasondevice.ui.language
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -17,10 +18,16 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -30,12 +37,18 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.kerasondevice.domain.model.ModelFormat
+import com.example.kerasondevice.domain.model.ModelHandle
 import com.example.kerasondevice.ui.theme.KerasRed
 
 @Composable
@@ -72,6 +85,27 @@ fun LanguageScreen(
                 onModeSelected = viewModel::setMode
             )
 
+            ModelSelector(
+                models = uiState.availableModels,
+                selectedIndex = uiState.selectedModelIndex,
+                onSelect = viewModel::selectModel
+            )
+
+            uiState.modelError?.let { error ->
+                Surface(
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = error,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(12.dp)
+                    )
+                }
+            }
+
             OutlinedTextField(
                 value = uiState.prompt,
                 onValueChange = viewModel::setPrompt,
@@ -101,9 +135,13 @@ fun LanguageScreen(
                 )
             }
 
+            val selectedModel = uiState.availableModels.getOrNull(uiState.selectedModelIndex)
             Button(
                 onClick = { viewModel.generate() },
-                enabled = uiState.prompt.isNotBlank() && !uiState.isGenerating,
+                enabled = uiState.prompt.isNotBlank() &&
+                    !uiState.isGenerating &&
+                    selectedModel != null &&
+                    uiState.modelError == null,
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(containerColor = KerasRed),
                 shape = RoundedCornerShape(12.dp)
@@ -172,6 +210,83 @@ fun LanguageScreen(
             Spacer(modifier = Modifier.height(16.dp))
         }
     }
+}
+
+@Composable
+private fun ModelSelector(
+    models: List<ModelHandle>,
+    selectedIndex: Int,
+    onSelect: (Int) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selected = models.getOrNull(selectedIndex)
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Model",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = selected?.let { "${it.file.name} [${formatLabel(it.format)}]" }
+                        ?: "No model available",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            if (models.size > 1) {
+                Box {
+                    IconButton(onClick = { expanded = true }) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowDropDown,
+                            contentDescription = "Select model"
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false }
+                    ) {
+                        models.forEachIndexed { index, model ->
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = "${model.file.name} [${formatLabel(model.format)}]",
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                },
+                                onClick = {
+                                    expanded = false
+                                    onSelect(index)
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun formatLabel(format: ModelFormat): String = when (format) {
+    ModelFormat.TFLITE -> "TFLITE"
+    ModelFormat.LITERTLM -> "LITERTLM"
 }
 
 @Composable

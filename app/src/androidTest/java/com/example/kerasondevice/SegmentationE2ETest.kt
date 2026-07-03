@@ -22,6 +22,7 @@ class SegmentationE2ETest {
     @Before
     fun setUp() {
         assumeAssetExists("models/deeplabv3.tflite")
+        assumeAssetExists("models/pascal_labels.txt")
     }
 
     @Test

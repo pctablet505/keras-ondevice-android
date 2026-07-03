@@ -9,6 +9,7 @@ import com.google.ai.edge.litertlm.EngineConfig
 import com.google.ai.edge.litertlm.Backend
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
@@ -27,7 +28,10 @@ class LiteRTLMEngineTest {
 
         val modelFile = File("/data/local/tmp/tiny_gemma3n.litertlm")
             .takeIf { it.exists() }
-            ?: throw IllegalStateException("tiny_gemma3n.litertlm not found on device")
+            ?: run {
+                assumeTrue("tiny_gemma3n.litertlm not found on device", false)
+                return@runBlocking
+            }
 
         Log.i(TAG, "Model file: ${modelFile.absolutePath}, size=${modelFile.length()}")
 
@@ -75,7 +79,10 @@ class LiteRTLMEngineTest {
                 .takeIf { it.exists() }
             ?: File("/data/local/tmp/gemma3_270m_it.litertlm")
                 .takeIf { it.exists() }
-            ?: throw IllegalStateException("Model file not found")
+            ?: run {
+                assumeTrue("gemma3_270m_it.litertlm not found on device", false)
+                return@runBlocking
+            }
 
         Log.i(TAG, "Model file: ${modelFile.absolutePath}, size=${modelFile.length()}")
 
