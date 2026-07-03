@@ -1,0 +1,4 @@
+{
+  "task": "text_generation",
+  "_note": "Sidecar for the gemma3_270m.tflite custom-LiteRT text generation model."
+}

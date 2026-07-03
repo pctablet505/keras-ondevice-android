@@ -41,15 +41,25 @@ class ImageClassificationTask(
                 val buffer = ImagePreprocessor().preprocess(input, config)
 
                 val classCount = config.num_classes ?: labelList.size
-                val outputArray = FloatArray(classCount)
-                val outputs = mutableMapOf<Int, Any>(0 to outputArray)
+
+                // Models may emit either [num_classes] or [1, num_classes].
+                val outputShape = interpreter.getOutputShape(0)
+                val outputBuffer: Any = if (outputShape.size == 2 && outputShape[0] == 1) {
+                    Array<FloatArray>(1) { FloatArray(classCount) }
+                } else {
+                    FloatArray(classCount)
+                }
+                val outputs = mutableMapOf<Int, Any>(0 to outputBuffer)
 
                 val start = System.currentTimeMillis()
                 interpreter.run(arrayOf(buffer), outputs)
                 val latency = System.currentTimeMillis() - start
 
-                val probs = outputs[0] as? FloatArray
-                    ?: return@use TaskResult.Error("Unexpected classification output type")
+                val probs = when (val raw = outputs[0]) {
+                    is FloatArray -> raw
+                    is Array<*> -> raw.getOrNull(0) as? FloatArray
+                    else -> null
+                } ?: return@use TaskResult.Error("Unexpected classification output type")
 
                 val top5 = PriorityQueue(compareByDescending<Classification> { it.score })
                 probs.forEachIndexed { idx, score ->

@@ -56,6 +56,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.kerasondevice.domain.model.ModelFormat
 import com.example.kerasondevice.domain.model.ModelHandle
 import com.example.kerasondevice.domain.model.ModelLocator
 import com.example.kerasondevice.domain.task.BoundingBox
@@ -217,6 +218,13 @@ private fun ModelSelector(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+                selected?.let {
+                    Text(
+                        text = formatLabel(it.format),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
             if (models.size > 1) {
                 Box {
@@ -233,11 +241,18 @@ private fun ModelSelector(
                         models.forEachIndexed { index, model ->
                             DropdownMenuItem(
                                 text = {
-                                    Text(
-                                        text = model.file.name,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
+                                    Column {
+                                        Text(
+                                            text = model.file.name,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Text(
+                                            text = formatLabel(model.format),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
                                 },
                                 onClick = {
                                     expanded = false
@@ -250,6 +265,11 @@ private fun ModelSelector(
             }
         }
     }
+}
+
+private fun formatLabel(format: ModelFormat): String = when (format) {
+    ModelFormat.TFLITE -> "TFLITE"
+    ModelFormat.LITERTLM -> "LITERTLM"
 }
 
 @Composable
@@ -375,7 +395,20 @@ private fun OutputArea(
                 )
             }
         }
-        null -> { }
+        null -> {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+        ) {
+            Text(
+                text = "Pick an image and tap Run ${task.name} to see results.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(16.dp)
+            )
+        }
+    }
     }
 }
 
@@ -407,7 +440,7 @@ private fun StatsFooter(
             "Latency: ${result.latencyMs} ms · Output: $shapeText"
         }
         is TaskResult.Error -> "Error"
-        null -> "Ready"
+        null -> "Ready · select an image and a model to run inference"
     }
     Text(
         text = text,

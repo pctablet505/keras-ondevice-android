@@ -12,11 +12,23 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
 
+/**
+ * End-to-end test for the LiteRT-LM optimized text-generation path.
+ *
+ * The test expects a `.litertlm` model file to be available on the device in
+ * the app's files dir, external files dir, or `/data/local/tmp`. It checks
+ * well-known filenames first to avoid directory-listing permission issues.
+ */
 @RunWith(AndroidJUnit4::class)
 class LiteRTLMTextE2ETest {
 
     companion object {
         private const val TAG = "LiteRTLMTextE2ETest"
+
+        private val KNOWN_MODEL_PATHS = listOf(
+            "/data/local/tmp/gemma3_270m_it.litertlm",
+            "/data/local/tmp/tiny_gemma3n.litertlm"
+        )
     }
 
     @Test
@@ -44,12 +56,10 @@ class LiteRTLMTextE2ETest {
 
     private fun findLiteRTLMModel(context: Context): File? {
         val candidates = mutableListOf<File>()
-        candidates += context.filesDir.listFiles()?.toList().orEmpty()
-        candidates += context.getExternalFilesDir(null)?.listFiles()?.toList().orEmpty()
-        candidates += File("/data/local/tmp").listFiles()?.toList().orEmpty()
-
-        return candidates.firstOrNull {
-            it.isFile && it.name.endsWith(".litertlm", ignoreCase = true)
-        }
+        context.filesDir.listFiles()?.filterTo(candidates) { it.name.endsWith(".litertlm", ignoreCase = true) }
+        context.getExternalFilesDir(null)?.listFiles()?.filterTo(candidates) { it.name.endsWith(".litertlm", ignoreCase = true) }
+        File("/data/local/tmp").listFiles()?.filterTo(candidates) { it.name.endsWith(".litertlm", ignoreCase = true) }
+        KNOWN_MODEL_PATHS.mapTo(candidates) { File(it) }
+        return candidates.distinctBy { it.absolutePath }.firstOrNull { it.isFile }
     }
 }

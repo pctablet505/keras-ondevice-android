@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "task": "object_detection",
+  "format": "tflite",
+  "image_width": 640,
+  "image_height": 640,
+  "input_dtype": "float32",
+  "color_channels": "rgb",
+  "labels": "coco_labels.txt",
+  "num_classes": 80,
+  "max_detections": 300,
+  "box_format": "xyxy_normalized",
+  "score_threshold": 0.3,
+  "postprocess_family": "dfine"
+}

@@ -15,11 +15,29 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
 
+/**
+ * End-to-end test for the custom LiteRT text-generation path.
+ *
+ * The test expects a `.tflite` text model, a matching `.json` sidecar, and a
+ * sibling `vocabulary.spm` file to be available on the device. It checks the
+ * standard locations used by the demo (app files dir, external files dir, and
+ * `/data/local/tmp`) and falls back to well-known filenames.
+ */
 @RunWith(AndroidJUnit4::class)
 class LiteRTTextE2ETest {
 
     companion object {
         private const val TAG = "LiteRTTextE2ETest"
+
+        private val KNOWN_MODEL_PATHS = listOf(
+            "/data/local/tmp/gemma3_270m.tflite",
+            "/data/local/tmp/gemma3_270m_it_torch_wi8afp32.tflite",
+            "/data/local/tmp/gemma3_270m_it_torch.tflite"
+        )
+
+        private val KNOWN_VOCAB_PATHS = listOf(
+            "/data/local/tmp/vocabulary.spm"
+        )
     }
 
     @Test
@@ -50,27 +68,36 @@ class LiteRTTextE2ETest {
     }
 
     private fun findTextModel(context: Context): Pair<File, File>? {
+        // Collect candidate model files from all standard locations.
         val candidates = mutableListOf<File>()
-        candidates += context.filesDir.listFiles()?.toList().orEmpty()
-        candidates += context.getExternalFilesDir(null)?.listFiles()?.toList().orEmpty()
-        candidates += File("/data/local/tmp").listFiles()?.toList().orEmpty()
+        context.filesDir.listFiles()?.filterTo(candidates) { it.name.endsWith(".tflite", ignoreCase = true) }
+        context.getExternalFilesDir(null)?.listFiles()?.filterTo(candidates) { it.name.endsWith(".tflite", ignoreCase = true) }
+        File("/data/local/tmp").listFiles()?.filterTo(candidates) { it.name.endsWith(".tflite", ignoreCase = true) }
+        KNOWN_MODEL_PATHS.mapTo(candidates) { File(it) }
 
-        for (file in candidates) {
-            if (!file.isFile || !file.name.endsWith(".tflite", ignoreCase = true)) continue
+        for (file in candidates.distinctBy { it.absolutePath }) {
+            if (!file.isFile) continue
 
             val sidecar = File(file.parentFile, file.nameWithoutExtension + ".json")
             val isTextModel = file.name.equals("gemma3_270m.tflite", ignoreCase = true) ||
+                file.name.contains("gemma3_270m", ignoreCase = true) ||
                 (sidecar.exists() && isTextGenerationSidecar(sidecar))
 
             if (!isTextModel) continue
 
-            val vocabFile = File(file.parentFile, "vocabulary.spm")
-                .takeIf { it.exists() }
+            val vocabFile = findVocab(file.parentFile)
                 ?: continue
 
             return file to vocabFile
         }
         return null
+    }
+
+    private fun findVocab(parentDir: File?): File? {
+        if (parentDir == null) return null
+        val local = File(parentDir, "vocabulary.spm")
+        if (local.exists()) return local
+        return KNOWN_VOCAB_PATHS.map { File(it) }.firstOrNull { it.exists() }
     }
 
     private fun isTextGenerationSidecar(sidecar: File): Boolean =

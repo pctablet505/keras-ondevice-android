@@ -33,6 +33,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.example.kerasondevice.domain.catalog.DemoCatalog
 import com.example.kerasondevice.domain.catalog.DemoEntry
+import com.example.kerasondevice.ui.theme.KerasRed
 
 @Composable
 fun CatalogScreen(
@@ -54,7 +55,7 @@ fun CatalogScreen(
                 color = MaterialTheme.colorScheme.onBackground
             )
             Text(
-                text = "Select a demo",
+                text = "Keras / TensorFlow models running locally",
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -63,7 +64,7 @@ fun CatalogScreen(
 
             LazyVerticalGrid(
                 columns = GridCells.Adaptive(minSize = 160.dp),
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(bottom = 16.dp)
@@ -75,6 +76,12 @@ fun CatalogScreen(
                     )
                 }
             }
+
+            Text(
+                text = "Models are discovered at runtime from /data/local/tmp or the app files directory.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
@@ -106,7 +113,7 @@ private fun CatalogCard(
                     imageVector = entry.icon(),
                     contentDescription = null,
                     modifier = Modifier.size(28.dp),
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = KerasRed
                 )
                 Text(
                     text = entry.title,
@@ -120,8 +127,26 @@ private fun CatalogCard(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            Spacer(modifier = Modifier.size(12.dp))
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.primaryContainer
+            ) {
+                Text(
+                    text = entry.categoryLabel(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                )
+            }
         }
     }
+}
+
+private fun DemoEntry.categoryLabel(): String = when (this) {
+    is DemoEntry.VisionEntry -> "LiteRT vision"
+    is DemoEntry.LanguageEntry -> "LiteRT / LiteRT-LM"
+    is DemoEntry.MultimodalEntry -> "LiteRT-LM"
 }
 
 private fun DemoEntry.icon(): ImageVector = when (this) {

@@ -26,8 +26,7 @@ fun copyAssetToFiles(context: Context, assetPath: String, dest: File): Boolean {
 /**
  * Skips the current test gracefully if the requested asset is not bundled.
  */
-fun assumeAssetExists(assetPath: String): Boolean {
-    val context = InstrumentationRegistry.getInstrumentation().targetContext
+fun assumeAssetExists(context: Context, assetPath: String): Boolean {
     val dir = assetPath.substringBeforeLast("/", "")
     val fileName = assetPath.substringAfterLast("/")
     val names = if (dir.isEmpty()) {
