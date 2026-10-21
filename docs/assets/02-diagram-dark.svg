@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="400" viewBox="0 0 1000 400" role="img" aria-labelledby="t d">
+  <title id="t">Check the phone against the notebook</title>
+  <desc id="d">One photo with a known answer, a quail, goes to the Keras model; predict gives the notebook's answer, saved as golden.json with labels, scores and boxes. The phone test runs the same photo and must match the same labels, with boxes at an IoU of 0.5 or more. The same photo also goes to the .tflite file in Python with ai_edge_litert, and its output is compared with the Keras output by the mean and max absolute difference. The phone test must fail when the golden file has no boxes.</desc>
+  <style>
+    .s{font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans",Helvetica,Arial,sans-serif}
+    .m{font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace}
+    .box{fill:#1e293b;stroke:#64748b;stroke-width:2}
+    .h{fill:#f8fafc;font-size:18px;font-weight:600}
+    .t{fill:#cbd5e1;font-size:16px}
+    .q{fill:#94a3b8;font-size:14px}
+    .a{stroke:#fbbf24;stroke-width:2.5;fill:none}
+    .ah{fill:#fbbf24}
+    .n{stroke:#64748b;stroke-width:2;fill:none}
+    .nh{fill:#64748b}
+  </style>
+  <rect width="1000" height="400" rx="16" fill="#0f172a"/>
+  <rect x="0.5" y="0.5" width="999" height="399" rx="15.5" fill="none" stroke="#1e293b"/>
+
+  <rect class="box" x="26" y="40" width="204" height="124" rx="10"/>
+  <text class="s h" x="46" y="76">One photo</text>
+  <text class="s t" x="46" y="106">a known answer</text>
+  <text class="s q" x="46" y="132">a quail, class 85</text>
+
+  <path class="a" d="M230 102H262"/>
+  <path class="ah" d="M262 95L274 102L262 109Z"/>
+
+  <rect class="box" x="274" y="40" width="204" height="124" rx="10"/>
+  <text class="s h" x="294" y="76">Keras model</text>
+  <text class="m t" x="294" y="106">predict()</text>
+  <text class="s q" x="294" y="132">the notebook's answer</text>
+
+  <path class="a" d="M478 102H510"/>
+  <path class="ah" d="M510 95L522 102L510 109Z"/>
+
+  <rect class="box" x="522" y="40" width="204" height="124" rx="10"/>
+  <text class="s h" x="542" y="76">Saved answer</text>
+  <rect x="534" y="88" width="180" height="26" rx="6" fill="#fbbf24" fill-opacity="0.16"/>
+  <text class="m t" x="542" y="106">golden.json</text>
+  <text class="s q" x="542" y="138">labels, scores, boxes</text>
+
+  <path class="a" d="M726 102H758"/>
+  <path class="ah" d="M758 95L770 102L758 109Z"/>
+
+  <rect class="box" x="770" y="40" width="204" height="124" rx="10"/>
+  <text class="s h" x="790" y="76">Phone test</text>
+  <text class="s t" x="790" y="106">same photo in</text>
+  <text class="s q" x="790" y="132">same labels, IoU ≥ 0.5</text>
+
+  <path class="n" d="M128 164V306H262"/>
+  <path class="nh" d="M262 299L274 306L262 313Z"/>
+
+  <path class="n" d="M376 176V232"/>
+  <path class="nh" d="M369 176L376 164L383 176Z"/>
+  <path class="nh" d="M369 232L376 244L383 232Z"/>
+  <text class="m q" x="390" y="208">mean, max |diff|</text>
+
+  <rect class="box" x="274" y="244" width="204" height="124" rx="10"/>
+  <text class="s h" x="294" y="280">.tflite in Python</text>
+  <text class="m t" x="294" y="310">ai_edge_litert</text>
+  <text class="s q" x="294" y="336">the same array in</text>
+
+  <path class="n" d="M872 164V232"/>
+  <path class="nh" d="M865 232L872 244L879 232Z"/>
+
+  <rect x="770" y="244" width="204" height="124" rx="10" fill="#1e293b" stroke="#64748b" stroke-width="2" stroke-dasharray="6 4"/>
+  <text class="s h" x="790" y="280">Fail on empty</text>
+  <text class="s q" x="790" y="310">no boxes is no pass</text>
+  <text class="s q" x="790" y="334">no file is no pass</text>
+</svg>

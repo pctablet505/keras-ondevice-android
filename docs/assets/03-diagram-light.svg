@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="472" viewBox="0 0 1000 472" role="img" aria-labelledby="t d">
+  <title id="t">Where a Keras export to LiteRT breaks</title>
+  <desc id="d">The export path, in the stages of the keras.io guide's own log: the Keras model on the PyTorch backend, Torch export at serving_default, lowering to MLIR, the LiteRT converter passes, the model.tflite file and the Android runtime. Trap 1, Python if and x.shape, sits in the model code. Trap 2, one fixed shape, at Torch export. Trap 3, an op with no lowering or a failed legalization, at lowering and at the converter passes. Trap 4, inputs named args_0, in the file. Trap 5 runs under every stage: each one has its own version.</desc>
+  <style>
+    .s{font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans",Helvetica,Arial,sans-serif}
+    .m{font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace}
+    .box{fill:#f8fafc;stroke:#64748b;stroke-width:2}
+    .h{fill:#0f172a;font-size:18px;font-weight:600}
+    .t{fill:#334155;font-size:16px}
+    .q{fill:#475569;font-size:14px}
+    .a{stroke:#b45309;stroke-width:2.5;fill:none}
+    .ah{fill:#b45309}
+    .b{fill:#b45309}
+    .bt{fill:#ffffff;font-size:15px;font-weight:700}
+  </style>
+  <rect width="1000" height="472" rx="16" fill="#ffffff"/>
+  <rect x="0.5" y="0.5" width="999" height="471" rx="15.5" fill="none" stroke="#e2e8f0"/>
+
+  <rect class="box" x="30" y="40" width="280" height="124" rx="10"/>
+  <text class="s h" x="50" y="76">Keras model</text>
+  <text class="s t" x="50" y="106">PyTorch backend</text>
+  <text class="s q" x="50" y="132">Python if, x.shape</text>
+  <circle class="b" cx="280" cy="68" r="14"/>
+  <text class="s bt" x="280" y="73" text-anchor="middle">1</text>
+
+  <path class="a" d="M310 102H348"/>
+  <path class="ah" d="M348 95L360 102L348 109Z"/>
+
+  <rect class="box" x="360" y="40" width="280" height="124" rx="10"/>
+  <text class="s h" x="380" y="76">Torch export</text>
+  <text class="m t" x="380" y="106">serving_default</text>
+  <text class="s q" x="380" y="132">one fixed shape</text>
+  <circle class="b" cx="610" cy="68" r="14"/>
+  <text class="s bt" x="610" y="73" text-anchor="middle">2</text>
+
+  <path class="a" d="M640 102H678"/>
+  <path class="ah" d="M678 95L690 102L678 109Z"/>
+
+  <rect class="box" x="690" y="40" width="280" height="124" rx="10"/>
+  <text class="s h" x="710" y="76">Lower to MLIR</text>
+  <text class="s q" x="710" y="106">every op needs a lowering</text>
+  <text class="m q" x="710" y="132">aten.complex, aten.amax</text>
+  <circle class="b" cx="940" cy="68" r="14"/>
+  <text class="s bt" x="940" y="73" text-anchor="middle">3</text>
+
+  <path class="a" d="M830 164V200H170V232"/>
+  <path class="ah" d="M163 232L170 244L177 232Z"/>
+
+  <rect class="box" x="30" y="244" width="280" height="124" rx="10"/>
+  <text class="s h" x="50" y="280">LiteRT passes</text>
+  <text class="s q" x="50" y="310">the converter</text>
+  <text class="m q" x="50" y="336">tfl.pow</text>
+  <circle class="b" cx="280" cy="272" r="14"/>
+  <text class="s bt" x="280" y="277" text-anchor="middle">3</text>
+
+  <path class="a" d="M310 306H348"/>
+  <path class="ah" d="M348 299L360 306L348 313Z"/>
+
+  <rect class="box" x="360" y="244" width="280" height="124" rx="10"/>
+  <text class="m h" x="380" y="280">model.tflite</text>
+  <text class="s q" x="380" y="310">inputs named args_0</text>
+  <circle class="b" cx="610" cy="272" r="14"/>
+  <text class="s bt" x="610" y="277" text-anchor="middle">4</text>
+
+  <path class="a" d="M640 306H678"/>
+  <path class="ah" d="M678 299L690 306L678 313Z"/>
+
+  <rect class="box" x="690" y="244" width="280" height="124" rx="10"/>
+  <text class="s h" x="710" y="280">Android runtime</text>
+  <text class="s q" x="710" y="310">LiteRT runs the file</text>
+  <text class="s q" x="710" y="336">flex ops: legacy runtime only</text>
+
+  <rect x="30" y="396" width="940" height="44" rx="10" fill="#f8fafc" stroke="#64748b" stroke-width="2" stroke-dasharray="6 4"/>
+  <circle class="b" cx="58" cy="418" r="14"/>
+  <text class="s bt" x="58" y="423" text-anchor="middle">5</text>
+  <text class="s t" x="84" y="424">Every stage has its own version: Keras, KerasHub, litert-torch, ai-edge-litert, the app's runtime.</text>
+</svg>

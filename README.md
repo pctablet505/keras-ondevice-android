@@ -1,143 +1,89 @@
 # Keras On-Device
 
-A production-grade public Android demo that showcases Keras/TensorFlow models running locally on-device via LiteRT and LiteRT-LM.
+Pick a photo, and this Android app runs a Keras image classifier on it, on the phone, with no server. It is a demo
+app with a step-by-step guide, not a product: no model comes with it, so you export one yourself and copy it to the
+phone.
 
-## What it demonstrates
+<p>
+<picture>
+  <source media="(prefers-color-scheme: dark) and (max-width: 600px)" srcset="assets/path-narrow-dark.svg">
+  <source media="(max-width: 600px)" srcset="assets/path-narrow-light.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="assets/path-dark.svg">
+  <img src="assets/path-light.svg" width="100%" alt="The path in six steps. On the computer, a pretrained Keras model, MobileNetV3 Small, goes through one export call with format litert and becomes two files: the model and its settings file. adb push copies both to /data/local/tmp on the phone. The app finds the pair, resizes the photo to 224 by 224, scales each colour, runs the model on the phone's CPU and shows five labels.">
+</picture>
+</p>
 
-| Surface | Task | Model | Runtime |
-|---|---|---|---|
-| Vision | Image classification | MobileNetV3 (KerasHub) | LiteRT (`tensorflow-lite`) |
-| Vision | Object detection | D-Fine (KerasHub) | LiteRT (`tensorflow-lite`) |
-| Vision | Image segmentation | DeepLabV3 (KerasHub) | LiteRT (`tensorflow-lite`) |
-| Vision | Depth estimation | DepthAnything v2 (KerasHub) | LiteRT (`tensorflow-lite`) |
-| Language | Text generation | Gemma3 270M IT | LiteRT (custom tokenization/sampling) |
-| Language | Text generation | Gemma3 270M IT | LiteRT-LM (`litertlm-android`) |
-| Multimodal | Engine validation | Gemma4 dummy | `litertlm-android` |
+Writing the guide found bugs that are still in the app: the top-five code drops the best score each time it holds
+six, so the screen shows the five least likely labels.
 
-## Build
+**[Start the guide: one model on your phone →](docs/01-export-a-vision-model.md)**
 
-Requirements:
-- Android Studio (Ladybug or newer)
-- Android SDK 36
-- JDK 21
+## What you get
 
-```bash
-./gradlew assembleDebug
-```
+- **One model, start to finish.** One export call in Python to LiteRT, the format once called TensorFlow Lite; one
+  small settings file; and four commands that copy the files to the phone and install the app.
+- **A way to check the phone's answer.** Get the right answer in Python, check the exported file against it, then
+  hold the phone to the same answer.
+- **The traps before you hit them.** Five ways an export breaks, each with the public issue or pull request behind it.
+- **Six screens to start from.** Classification, object detection, segmentation and depth, each showing how long the
+  run took in milliseconds; a Gemma model that writes text; and a screen that only checks that a model which reads
+  images can start.
 
-The debug APK is at `app/build/outputs/apk/debug/app-debug.apk`.
+## Try it
 
-## Run tests
-
-### Unit tests (no device needed)
-
-```bash
-./gradlew testDebugUnitTest
-```
-
-### Instrumented tests (requires a device or emulator)
-
-Stage large test models in `/data/local/tmp` (they are intentionally not bundled):
+You export the model and copy it to the phone yourself. Save the settings file from
+[part 1](docs/01-export-a-vision-model.md#2-tell-the-app-how-to-feed-it) as `/tmp/mobilenetv3.json`, then:
 
 ```bash
-adb push /tmp/mobilenetv3.tflite /data/local/tmp/
-adb push /tmp/deeplabv3.tflite /data/local/tmp/
-adb push /tmp/midas.tflite /data/local/tmp/
-adb push /tmp/dfine.tflite /data/local/tmp/
-adb push app/src/androidTest/assets/models/*.json /data/local/tmp/
-adb push app/src/androidTest/assets/models/*.txt /data/local/tmp/
-```
-
-Then run:
-
-```bash
-./gradlew connectedDebugAndroidTest
-```
-
-> The debug APK is automatically reinstalled after instrumented tests finish, so the demo remains on the device for manual verification. This is handled by an `afterEvaluate` `finalizedBy installDebug` hook in `app/build.gradle.kts` because AGP registers `connectedDebugAndroidTest` after the `android {}` block is evaluated.
->
-> Test assets (images, small SSD model, labels) live in `app/src/androidTest/assets`. The tests read them through the instrumentation context and copy required files to the target app's `filesDir`. Large models are discovered from `/data/local/tmp`.
-
-## Model exports
-
-Vision models are exported from KerasHub with the default Torch backend where possible. D-Fine's torch-backend LiteRT export fails with dynamic-shape errors, so it is exported via `tf_saved_model` and converted to TFLite.
-
-Example exports:
-
-```bash
-cd /home/pctablet505/Projects/gemmademo-litert-export
-source .venv/bin/activate
-
 KERAS_BACKEND=torch python -c "
 import keras_hub, torch
 m = keras_hub.models.MobileNetImageClassifier.from_preset('mobilenet_v3_small_100_imagenet')
 m.export('/tmp/mobilenetv3.tflite', format='litert', input_signature=[torch.randn(1,224,224,3)])
 "
-
-KERAS_BACKEND=torch python -c "
-import keras_hub, torch
-m = keras_hub.models.DeepLabV3ImageSegmenter.from_preset('deeplab_v3_plus_resnet50_pascalvoc')
-m.export('/tmp/deeplabv3.tflite', format='litert', input_signature=[torch.randn(1,512,512,3)])
-"
-
-KERAS_BACKEND=torch python -c "
-import keras_hub, torch
-b = keras_hub.models.DepthAnythingBackbone.from_preset('depth_anything_v2_small')
-m = keras_hub.models.DepthAnythingDepthEstimator(backbone=b, depth_estimation_type='relative')
-m.export('/tmp/midas.tflite', format='litert', input_signature=[torch.randn(1,518,518,3)])
-"
-
-# D-Fine uses TensorFlow SavedModel as an intermediate step.
-KERAS_BACKEND=tensorflow python -c "
-import keras_hub, tensorflow as tf
-m = keras_hub.models.DFineObjectDetector.from_preset('dfine_nano_coco')
-m.export('/tmp/dfine_saved_model', format='tf_saved_model', input_signature=[tf.TensorSpec([1,640,640,3], tf.float32)])
-"
-python -c "
-import tensorflow as tf
-c = tf.lite.TFLiteConverter.from_saved_model('/tmp/dfine_saved_model')
-c.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS, tf.lite.OpsSet.SELECT_TF_OPS]
-open('/tmp/dfine.tflite','wb').write(c.convert())
-"
+adb push /tmp/mobilenetv3.tflite /data/local/tmp/
+adb push /tmp/mobilenetv3.json /data/local/tmp/
+adb push app/src/androidTest/assets/models/*.txt /data/local/tmp/
+./gradlew installDebug
 ```
 
-## Model setup
+`from_preset` loads a pretrained model by name from KerasHub, the Keras library of ready-made models.
+`input_signature` fixes the input to one 224 by 224 colour photo, because an export on the PyTorch backend needs one
+fixed size. Then open Classification, pick a photo and tap Run. These commands come from this repository and the
+public docs it links; they were not re-run for this page.
 
-Models are discovered at runtime in this order:
+You need a recent Android Studio (Ladybug or newer), Android SDK 36, JDK 21, the Python packages from
+[part 1](docs/01-export-a-vision-model.md#1-export-the-model), and a phone that `adb` can reach.
 
-1. `context.filesDir`
-2. `context.getExternalFilesDir(null)`
-3. `/data/local/tmp`
+## What the guide found
 
-Each `.tflite` or `.litertlm` file must ship with a JSON sidecar (`<model>.json`) describing the task, input size, normalization, and labels file.
+Besides the top-five bug, the code as of
+[3 July 2026](https://github.com/pctablet505/keras-ondevice-android/tree/b8d3e2f1baeb5f9d13697e6a0ee5e1f646f6da09) has
+two tests that cannot catch a wrong answer (one only counts the labels), a sample settings file whose numbers do not
+fit this model, and a label file of placeholder names. [Part 1](docs/01-export-a-vision-model.md#before-you-trust-the-list) and
+[part 2](docs/02-check-against-the-notebook.md#two-tests-that-could-not-fail) show each one in the code.
 
-### Example sidecar for classification
+## Limits
 
-```json
-{
-  "task": "image_classification",
-  "image_width": 224,
-  "image_height": 224,
-  "normalization": {"mean": [127.5, 127.5, 127.5], "std": [127.5, 127.5, 127.5]},
-  "labels": "imagenet_labels.txt",
-  "num_classes": 1000
-}
-```
+The vision screens run on the CPU only, with TensorFlow Lite's older Interpreter API, which the
+[LiteRT Android page](https://ai.google.dev/edge/litert/android) calls "maintained for backward compatibility". The
+guide covers the vision models; making the model files for the two Gemma screens is not covered.
 
-See `scripts/prepare_test_assets.py` for how the bundled test models are generated.
+## The guide
 
-## Architecture
+- [Part 1: export a KerasHub vision model and run it on Android](docs/01-export-a-vision-model.md): the whole path,
+  with the numbers the model needs.
+- [Part 2: check the phone's answer against the notebook](docs/02-check-against-the-notebook.md): why two of this
+  app's tests cannot catch a wrong answer, and how to write one that can.
+- [Part 3: where conversion breaks, with the evidence](docs/03-traps.md): five traps, each with the public pull request
+  or issue behind it.
+- [Build, test and export: the reference](docs/reference.md): every build, test and export command, and how the code
+  is laid out.
 
-- `domain/` — pure Kotlin domain models, task contract, catalog, model discovery.
-- `inference/` — interpreter wrappers and task-specific inference logic.
-- `data/preprocessing/` — image/audio preprocessors.
-- `ui/` — Jetpack Compose screens and renderers.
+## Licence
 
-## Known limitations
+Apache-2.0, see [LICENSE](LICENSE).
 
-- Real Gemma4 multimodal end-to-end image/audio inference is not yet supported; the KerasHub export pipeline currently produces a single `PREFILL_DECODE` model instead of separate `VISION_ENCODER`/`VISION_ADAPTER` sub-models required by the LiteRT-LM runtime.
-- D-Fine is converted with SELECT_TF_OPS enabled because its torch-backend LiteRT export hits dynamic-shape errors in the current toolchain. GPU/NPU delegate validation is out of scope for this cycle.
+---
 
-## License
-
-Apache 2.0 — see `LICENSE`.
+<picture><source media="(prefers-color-scheme: dark)" srcset="assets/mark-dark.svg"><img src="assets/mark-light.svg" width="16" height="16" alt=""></picture>
+<sub>Built by [pctablet505](https://github.com/pctablet505).</sub>
