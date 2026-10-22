@@ -32,22 +32,27 @@ answer to it is wrong.
 ## 1. Get the notebook's answer
 
 Start from a real photo with a known answer. KerasHub's own example uses a California quail, and "quail" is ImageNet
-class 85 ([imagenet_utils.py](https://github.com/keras-team/keras-hub/blob/3ba52a2fa10a841633bc8acb06e6fa0195a00077/keras_hub/src/utils/imagenet/imagenet_utils.py)):
+class 85 ([imagenet_utils.py](https://github.com/keras-team/keras-hub/blob/3ba52a2fa10a841633bc8acb06e6fa0195a00077/keras_hub/src/utils/imagenet/imagenet_utils.py#L57-L65)).
+Its example fetches the photo with `keras.utils.get_file`, and on 22 October 2026 that fetch failed:
+upload.wikimedia.org answered `403 -- Forbidden`. That photo is also licensed CC BY-SA 3.0, not public domain. So
+download a public-domain one yourself, for example
+[this U.S. Fish and Wildlife Service photo](https://commons.wikimedia.org/wiki/File:California_Quail_(9405494428)_(cropped).jpg),
+crop it square, and load it from disk. With the preset exported in part 1:
 
 ```python
-image_url = "https://upload.wikimedia.org/wikipedia/commons/a/aa/California_quail.jpg"
-image_path = keras.utils.get_file(origin=image_url)
-image = keras.utils.load_img(image_path)
+image = keras.utils.load_img("california_quail.jpg")
 classifier = keras_hub.models.ImageClassifier.from_preset(
-    "resnet_50_imagenet",
+    "mobilenet_v3_small_100_imagenet",
     activation="softmax",
 )
 preds = classifier.predict(np.array([image]))
 top_labels = keras_hub.utils.decode_imagenet_predictions(preds)
 ```
 
-Put the preset you exported in place of `resnet_50_imagenet`. `predict()` runs the preset's own preprocessing, so
-this is the answer the model was built to give. Keep the five labels and their scores.
+`predict()` runs the preset's own preprocessing, so this is the answer the model was built to give. On 22 October
+2026 (keras 3.15.1, keras-hub 0.32.0, a computer's CPU) it gave quail 10.30, partridge 3.94, prairie chicken 3.77,
+black grouse 3.57 and ruffed grouse 3.43. Those are raw scores: despite `activation="softmax"`, the 1,000 scores
+summed to 162.5, not 1. Keep the five labels and their scores.
 
 ## 2. Check the exported file before the phone
 
@@ -84,7 +89,10 @@ mean_abs_diff = np.mean(abs_diff)
 max_abs_diff = np.max(abs_diff)
 ```
 
-Its strict mode allows a tolerance of 1e-6. Its statistical mode holds the mean and the largest difference under a
+On 22 October 2026, on the square quail photo, the exported file and the Keras model agreed to `max_abs_diff`
+1.1e-05 and `mean_abs_diff` 1.9e-06 over the 1,000 scores, with the same five labels in the same order and quail at
+10.31 in both. KerasHub's
+strict mode allows a tolerance of 1e-6. Its statistical mode holds the mean and the largest difference under a
 threshold set for each output. Some models only pass that way: "within tolerance rather than exact match"
 ([keras-hub#2698](https://github.com/keras-team/keras-hub/pull/2698)).
 
@@ -102,10 +110,15 @@ Two guards turn it into a test that can fail:
   ([preprocessor.json](https://huggingface.co/keras/mobilenet_v3_small_100_imagenet/blob/0c0c8625121a1725a05a0ec7d23f0ed22286b3a2/preprocessor.json)),
   and the app stretches it. Use a square photo, or crop it first.
 
+A check like this does fail. Fed the way the app feeds it (resized to 224 by 224, then the preset's numbers), the
+same file on the same square photo gives quail 10.11, then prairie chicken and partridge the other way round from the
+notebook. That was a computer's CPU with the app's preprocessing copied into Python, not the phone. With the right
+numbers, what is left is the resize step, and a test that compares the ordered five labels catches it.
+
 ## What I have not solved
 
-How close is close enough once a model is quantized? KerasHub's thresholds are set by hand, per model and per
-output. I do not have a rule for picking one yet.
+How close is close enough? Even before quantization, the app's resize moved the top score by 0.2 and swapped two
+labels. KerasHub's thresholds are set by hand, per model and per output. I do not have a rule for picking one yet.
 
 **[Next: the traps, each with its public evidence →](03-traps.md)**
 

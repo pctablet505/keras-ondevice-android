@@ -14,9 +14,10 @@ test that is still switched off. Read the record before you lose a day to it.
 
 Export turns your Python into a graph. A Python `if` on a tensor, or a size read with `x.shape`, can break that
 step or freeze one case.
-Two merged fixes show the cure: an `if`/`else` became `ops.cond`
-([keras-hub#2467](https://github.com/keras-team/keras-hub/pull/2467)), and `x.shape[position]` became
-`ops.shape(x)[position]` ([keras-hub#2466](https://github.com/keras-team/keras-hub/pull/2466)). The DeepLabV3 test
+Two merged fixes show the cure: `x.shape[position]` became `ops.shape(x)[position]`
+([keras-hub#2466](https://github.com/keras-team/keras-hub/pull/2466)), and a Python `if`/`else` was removed by
+building the tensor so that one token gives an empty one, "avoiding the need for a Python conditional"
+([keras-hub#2467](https://github.com/keras-team/keras-hub/pull/2467)). The DeepLabV3 test
 is still skipped with this reason: "symbolic tf.Tensor used as a Python bool"
 ([test](https://github.com/keras-team/keras-hub/blob/3ba52a2fa10a841633bc8acb06e6fa0195a00077/keras_hub/src/models/deeplab_v3/deeplab_v3_segmenter_test.py#L74-L77)).
 
@@ -51,10 +52,11 @@ Your app asks for an input by name, and the file calls it `args_0`. litert-torch
 names ([litert-torch#1022](https://github.com/google-ai-edge/litert-torch/issues/1022), closed 2026-06-04). The
 original keys survive only with litert-torch newer than 0.9.1
 ([keras#23053](https://github.com/keras-team/keras/pull/23053)). Print the names before you write app code. This is
-the guide's line for it:
+the guide's line for it, and what it printed for this app's MobileNetV3 file on 22 October 2026:
 
 ```python
 print("Signatures:", interpreter.get_signature_list())
+# Signatures: {'serving_default': {'inputs': ['args_0'], 'outputs': ['output_0']}}
 ```
 
 ## 5. The toolchain moves under you
@@ -65,14 +67,22 @@ backend only, with Keras 3.15 or newer
 ([keras-hub#2698](https://github.com/keras-team/keras-hub/pull/2698)). Keras 3 with TensorFlow 2.20 and Python 3.13
 crashed during export until [keras#22816](https://github.com/keras-team/keras/pull/22816).
 
-Write down the versions that worked for you, and the date. The newest on PyPI on 21 October 2026 were keras
-3.15.1, keras-hub 0.32.0, litert-torch 0.10.0 and ai-edge-litert 2.3.0. This guide was not re-run against them.
+It moved again on 22 October 2026. Installed from the main branches, as the keras.io guide does it (keras 3.16.0,
+keras-hub 0.33.0.dev0, litert-torch 0.11.0), the part 1 export failed in the converter passes with
+`'tfl.batch_matmul' op found invalid output rank, expected 3 but got 4`. The released versions of the day before,
+keras 3.15.1, keras-hub 0.32.0, litert-torch 0.10.0 and ai-edge-litert 2.3.0, exported the same model.
+
+Write down the versions that worked for you, and the date, next to the file:
+
+```bash
+pip freeze | grep -iE "keras|litert" > export-versions.txt
+```
 
 ## The one I cannot close yet
 
 KerasHub's DeepLabV3 export test is still skipped on master. This app exports a DeepLabV3 preset on the same
-PyTorch backend ([export steps](reference.md#model-exports)). One of the two is out of date, or they differ in a way I have not found. I
-have not re-run either.
+PyTorch backend ([export steps](reference.md#model-exports)). One of the two is out of date, or they differ in a way I have not found. The
+22 October run covered MobileNetV3 only, so this one is still open.
 
 **[New here? Start with part 1: one model on a phone →](01-export-a-vision-model.md)**
 

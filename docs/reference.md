@@ -97,6 +97,8 @@ open('/tmp/dfine.tflite','wb').write(c.convert())
 "
 ```
 
+> Checked on 22 October 2026, on a computer's CPU: the MobileNetV3 export above worked with keras 3.15.1, keras-hub 0.32.0, litert-torch 0.10.0 and ai-edge-litert 2.3.0, and failed with the main branches (`'tfl.batch_matmul' op found invalid output rank, expected 3 but got 4`). The other exports were not re-run. Details: [part 1](01-export-a-vision-model.md#1-export-the-model).
+
 ## Model setup
 
 Models are discovered at runtime in this order:

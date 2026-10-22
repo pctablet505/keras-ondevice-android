@@ -30,13 +30,14 @@ What it is not:
 ## 1. Export the model
 
 The keras.io guide installs Keras, KerasHub and litert-torch from their main branches, because the export path is
-still moving. The guide runs these lines in a notebook, each with a leading `!`:
+still moving. On 22 October 2026 that failed for this model: with keras 3.16.0, keras-hub 0.33.0.dev0 and
+litert-torch 0.11.0 from the main branches, the export below stopped with
+`'tfl.batch_matmul' op found invalid output rank, expected 3 but got 4`. The released versions worked. Install
+PyTorch first (the CPU build is enough), then pin them:
 
 ```bash
-pip install -q git+https://github.com/keras-team/keras.git
-pip install -q git+https://github.com/keras-team/keras-hub.git
-pip install -q git+https://github.com/google-ai-edge/litert-torch.git
-pip install -q ai-edge-litert
+pip install torch --index-url https://download.pytorch.org/whl/cpu
+pip install keras==3.15.1 keras-hub==0.32.0 litert-torch==0.10.0 ai-edge-litert==2.3.0
 ```
 
 Then one call exports the model. This is the export command from this repository's README:
@@ -49,7 +50,8 @@ m.export('/tmp/mobilenetv3.tflite', format='litert', input_signature=[torch.rand
 "
 ```
 
-Two parts of it matter:
+On 22 October 2026, with the pinned versions and on a computer's CPU, it wrote a 10,255,480-byte
+`mobilenetv3.tflite`. Two parts of it matter:
 
 - `KERAS_BACKEND=torch` picks the PyTorch backend. The keras.io guide uses it because its output runs on the new
   LiteRT Android runtime without flex ops.
@@ -82,7 +84,12 @@ a `scale` and an `offset` for each colour channel. In the sidecar's terms, on pi
 ```
 
 The sidecar in the app's test assets is marked as a placeholder, and it uses 127.5 for both numbers. That maps
-pixels to the range -1 to 1, which is not the input this preset expects.
+pixels to the range -1 to 1, which is not the input this preset expects. It does not always change the answer: on a
+public-domain photo of a California quail
+([U.S. Fish and Wildlife Service, via Wikimedia Commons](https://commons.wikimedia.org/wiki/File:California_Quail_(9405494428)_(cropped).jpg),
+cropped square), the exported file, fed the way the app feeds it, still ranks quail first. Its raw score, before any
+softmax, falls from 10.11 with the preset's numbers to 9.72 with the placeholder's. A wrong number that leaves the top
+answer alone is easy to ship.
 
 ## 3. Put both on the phone
 
@@ -100,15 +107,19 @@ adb push app/src/androidTest/assets/models/*.txt /data/local/tmp/
 The third line copies the label files. The ImageNet one holds placeholders, `class_0` to `class_999`, so the app
 shows class numbers. `keras_hub.utils.imagenet_id_to_name` turns a number into a name.
 
-Open the app, choose Classification, and pick a photo.
+Open the app, choose Classification, and pick a photo. On 22 October 2026 the app built with Gradle 9.1.0
+(`./gradlew assembleDebug`, 1 min 38 s); it was not tested on a phone for this page.
 
 ## Before you trust the list
 
 When I read the code for this page, I found that the five labels are the wrong five. The queue keeps the highest
 score at its head. Each time it holds six, `poll()` removes that head
 ([lines 64 to 72](https://github.com/pctablet505/keras-ondevice-android/blob/b8d3e2f1baeb5f9d13697e6a0ee5e1f646f6da09/app/src/main/java/com/example/kerasondevice/inference/tasks/ImageClassificationTask.kt#L64-L72)).
-So the screen shows the five least likely classes. The test for this screen checks only that one to five labels
-come back
+So the screen shows the five least likely classes. For the quail photo above, the same file run on a computer's CPU,
+with the app's preprocessing and its top-five code copied into Python, gives the app's list as classes 50, 329, 389,
+758 and 328: American alligator, sea cucumber, barracouta, reel and sea urchin. The real top five for the same input
+are quail, prairie chicken, partridge, black grouse and ruffed grouse. The test for this screen checks only that one to five
+labels come back
 ([line 66](https://github.com/pctablet505/keras-ondevice-android/blob/b8d3e2f1baeb5f9d13697e6a0ee5e1f646f6da09/app/src/androidTest/java/com/example/kerasondevice/ClassificationE2ETest.kt#L66)).
 It cannot see this.
 

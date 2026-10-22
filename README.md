@@ -13,9 +13,6 @@ phone.
 </picture>
 </p>
 
-Writing the guide found bugs that are still in the app: the top-five code drops the best score each time it holds
-six, so the screen shows the five least likely labels.
-
 **[Start the guide: one model on your phone →](docs/01-export-a-vision-model.md)**
 
 ## What you get
@@ -25,14 +22,14 @@ six, so the screen shows the five least likely labels.
 - **A way to check the phone's answer.** Get the right answer in Python, check the exported file against it, then
   hold the phone to the same answer.
 - **The traps before you hit them.** Five ways an export breaks, each with the public issue or pull request behind it.
-- **Six screens to start from.** Classification, object detection, segmentation and depth, each showing how long the
-  run took in milliseconds; a Gemma model that writes text; and a screen that only checks that a model which reads
-  images can start.
+- **Six screens to start from.** Classification, object detection, segmentation and depth, each with its run time
+  in milliseconds, and two Gemma screens.
 
 ## Try it
 
 You export the model and copy it to the phone yourself. Save the settings file from
-[part 1](docs/01-export-a-vision-model.md#2-tell-the-app-how-to-feed-it) as `/tmp/mobilenetv3.json`, then:
+[part 1](docs/01-export-a-vision-model.md#2-tell-the-app-how-to-feed-it), a small JSON file with the photo size and the
+numbers to scale it by, as `/tmp/mobilenetv3.json`, then:
 
 ```bash
 KERAS_BACKEND=torch python -c "
@@ -48,23 +45,27 @@ adb push app/src/androidTest/assets/models/*.txt /data/local/tmp/
 
 `from_preset` loads a pretrained model by name from KerasHub, the Keras library of ready-made models.
 `input_signature` fixes the input to one 224 by 224 colour photo, because an export on the PyTorch backend needs one
-fixed size. Then open Classification, pick a photo and tap Run. These commands come from this repository and the
-public docs it links; they were not re-run for this page.
+fixed size. Then open Classification, pick a photo and tap Run.
 
-You need a recent Android Studio (Ladybug or newer), Android SDK 36, JDK 21, the Python packages from
-[part 1](docs/01-export-a-vision-model.md#1-export-the-model), and a phone that `adb` can reach.
+On 22 October 2026 the export ran on a computer's CPU with keras 3.15.1, keras-hub 0.32.0, litert-torch 0.10.0 and
+ai-edge-litert 2.3.0. Installed from the main branches instead, it failed in the converter
+([part 1](docs/01-export-a-vision-model.md#1-export-the-model) has the error and the install lines). The app built
+with `./gradlew assembleDebug`; it was not tested on a phone for this page.
+
+You need a recent Android Studio (Ladybug or newer), Android SDK 36, JDK 21, PyTorch and the pinned Python packages
+above, and a phone that `adb` can reach.
 
 ## What the guide found
 
-Besides the top-five bug, the code as of
-[3 July 2026](https://github.com/pctablet505/keras-ondevice-android/tree/b8d3e2f1baeb5f9d13697e6a0ee5e1f646f6da09) has
-two tests that cannot catch a wrong answer (one only counts the labels), a sample settings file whose numbers do not
-fit this model, and a label file of placeholder names. [Part 1](docs/01-export-a-vision-model.md#before-you-trust-the-list) and
-[part 2](docs/02-check-against-the-notebook.md#two-tests-that-could-not-fail) show each one in the code.
+Bugs in this app's own code, still there as of
+[3 July 2026](https://github.com/pctablet505/keras-ondevice-android/tree/b8d3e2f1baeb5f9d13697e6a0ee5e1f646f6da09): the
+top-five list shows the five least likely labels, two tests cannot catch a wrong answer, and the sample settings and
+labels do not fit the model ([part 1](docs/01-export-a-vision-model.md#before-you-trust-the-list),
+[part 2](docs/02-check-against-the-notebook.md#two-tests-that-could-not-fail)).
 
 ## Limits
 
-The vision screens run on the CPU only, with TensorFlow Lite's older Interpreter API, which the
+The vision screens run on the CPU only, through the Interpreter API of the older TensorFlow Lite runtime, which the
 [LiteRT Android page](https://ai.google.dev/edge/litert/android) calls "maintained for backward compatibility". The
 guide covers the vision models; making the model files for the two Gemma screens is not covered.
 
