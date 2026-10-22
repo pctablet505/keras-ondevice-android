@@ -34,7 +34,8 @@ answer to it is wrong.
 Start from a real photo with a known answer. KerasHub's own example uses a California quail, and "quail" is ImageNet
 class 85 ([imagenet_utils.py](https://github.com/keras-team/keras-hub/blob/3ba52a2fa10a841633bc8acb06e6fa0195a00077/keras_hub/src/utils/imagenet/imagenet_utils.py#L57-L65)).
 Its example fetches the photo with `keras.utils.get_file`, and on 22 October 2026 that fetch failed:
-upload.wikimedia.org answered `403 -- Forbidden`. That photo is also licensed CC BY-SA 3.0, not public domain. So
+upload.wikimedia.org answered `403 -- Forbidden`. That photo is also licensed CC BY-SA 3.0, not public domain
+([its Commons page](https://commons.wikimedia.org/wiki/File:California_quail.jpg)). So
 download a public-domain one yourself, for example
 [this U.S. Fish and Wildlife Service photo](https://commons.wikimedia.org/wiki/File:California_Quail_(9405494428)_(cropped).jpg),
 crop it square, and load it from disk. With the preset exported in part 1:

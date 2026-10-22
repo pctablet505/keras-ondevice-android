@@ -26,6 +26,7 @@ Requirements:
 ./gradlew assembleDebug
 ```
 
+The debug APK is at `app/build/outputs/apk/debug/app-debug.apk`.
 
 ## Run tests
 
@@ -56,6 +57,7 @@ Then run:
 
 > The debug APK is automatically reinstalled after instrumented tests finish, so the demo remains on the device for manual verification. This is handled by an `afterEvaluate` `finalizedBy installDebug` hook in `app/build.gradle.kts` because AGP registers `connectedDebugAndroidTest` after the `android {}` block is evaluated.
 >
+> Test assets (images, small SSD model, labels) live in `app/src/androidTest/assets`. The tests read them through the instrumentation context and copy required files to the target app's `filesDir`. Large models are discovered from `/data/local/tmp`.
 
 ## Model exports
 
@@ -97,7 +99,7 @@ open('/tmp/dfine.tflite','wb').write(c.convert())
 "
 ```
 
-> Checked on 22 October 2026, on a computer's CPU: the MobileNetV3 export above worked with keras 3.15.1, keras-hub 0.32.0, litert-torch 0.10.0 and ai-edge-litert 2.3.0, and failed with the main branches (`'tfl.batch_matmul' op found invalid output rank, expected 3 but got 4`). The other exports were not re-run. Details: [part 1](01-export-a-vision-model.md#1-export-the-model).
+> Checked on 22 October 2026, on a computer's CPU: the MobileNetV3 export above worked with keras 3.15.1, keras-hub 0.32.0, litert-torch 0.10.0 and ai-edge-litert 2.3.0, and failed with the main branches (`'tfl.batch_matmul' op found invalid output rank, expected 3 but got 4`). The other exports were not re-run. Details: [part 1](01-export-a-vision-model.md#1-export-the-model). The app was built with `./gradlew assembleDebug`; it was not tested on a phone.
 
 ## Model setup
 

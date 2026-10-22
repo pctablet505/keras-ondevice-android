@@ -36,7 +36,7 @@ TensorFlow SavedModel, then the converter with `SELECT_TF_OPS` ([export steps](r
 ## 3. An op has no lowering
 
 The export stops at one op name. When KerasHub switched its export tests on for PyTorch, it marked 11 models as
-expected failures ([keras-hub#2698](https://github.com/keras-team/keras-hub/pull/2698)). Each has a one-line reason. Three of them:
+expected failures ([keras-hub#2698](https://github.com/keras-team/keras-hub/pull/2698)). Each has a one-line reason. Five of them, in three groups:
 
 - F-Net: "litert-torch has no lowering for aten.complex (from ops.fft2)"
 - Mixtral, Qwen-MoE and Qwen3-MoE: "litert-torch cannot lower aten._assert_async from MoE routing"
